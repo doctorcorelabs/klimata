@@ -1,8 +1,9 @@
 name: Deploy Chatbot Worker
 
+# Disabled automatic runs on push to avoid accidental publishes from this repo.
+# This workflow now runs manually via the Actions UI (workflow_dispatch).
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch: {}
 
 jobs:
   deploy:
