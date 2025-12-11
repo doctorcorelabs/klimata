@@ -1,0 +1,6 @@
+name = "klimata-chatbot-worker"
+main = "chatbot-worker.ts"
+compatibility_date = "2025-12-11"
+
+# Optional: set your account_id here or use CLI to publish
+# account_id = "your-cloudflare-account-id"
