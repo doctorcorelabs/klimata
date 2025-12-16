@@ -24,11 +24,15 @@ const workerUrl = (import.meta as any).env.VITE_CHATBOT_WORKER_URL || 'https://k
 
 export default function Chatbot() {
   const [input, setInput] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [fileBase64, setFileBase64] = useState<string | null>(null);
   const [fileMime, setFileMime] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [audioPreview, setAudioPreview] = useState<string | null>(null);
+  const [audioBase64, setAudioBase64] = useState<string | null>(null);
+  const [audioMime, setAudioMime] = useState<string | null>(null);
   const [messages, setMessages] = useState<Array<{ role: string; text: string; time?: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,13 +45,13 @@ export default function Chatbot() {
   }, [messages]);
 
   const send = async () => {
-    if (!input.trim() && !imageUrl.trim() && !fileBase64) return;
+    if (!input.trim() && !fileBase64 && !audioBase64) return;
     setError(null);
 
     const userContent: ContentItem[] = [];
     if (input.trim()) userContent.push({ type: 'text', text: input.trim() });
-    if (imageUrl.trim()) userContent.push({ type: 'image_url', image_url: { url: imageUrl.trim() } });
     if (fileBase64) userContent.push({ type: 'image_base64', image_base64: { data: fileBase64, mime: fileMime || 'image/png', name: fileName || 'upload.png' } });
+    if (audioBase64) userContent.push({ type: 'input_audio', input_audio: { data: audioBase64, format: audioMime || 'audio/webm' } });
 
     const userMessage: Message = { role: 'user', content: userContent };
 
@@ -55,11 +59,16 @@ export default function Chatbot() {
     const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     setMessages((m) => [...m, { role: 'user', text: input || '(image)', time: now }]);
     setInput('');
-    setImageUrl('');
     setFileBase64(null);
     setFileMime(null);
     setFileName(null);
     setFilePreview(null);
+    setAudioBase64(null);
+    setAudioMime(null);
+    if (audioPreview) {
+      URL.revokeObjectURL(audioPreview);
+      setAudioPreview(null);
+    }
     setLoading(true);
 
     try {
@@ -160,6 +169,66 @@ export default function Chatbot() {
     setFilePreview(null);
   };
 
+  const blobToBase64 = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') resolve(reader.result);
+        else reject(new Error('Failed to convert blob to base64'));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+  const startRecording = async () => {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      mediaRecorderRef.current = mr;
+      const chunks: BlobPart[] = [];
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+      mr.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        setAudioPreview(url);
+        const dataUrl = await blobToBase64(blob);
+        const m = dataUrl.match(/^data:(.*);base64,(.*)$/s);
+        if (m) {
+          setAudioMime(m[1]);
+          setAudioBase64(m[2]);
+        } else {
+          setAudioBase64(dataUrl);
+          setAudioMime('audio/webm');
+        }
+        stream.getTracks().forEach((t) => t.stop());
+        mediaRecorderRef.current = null;
+        setRecording(false);
+      };
+      mr.start();
+      setRecording(true);
+    } catch (err) {
+      setError('Gagal mengakses mikrofon. Periksa izin dan coba lagi.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const clearAudio = () => {
+    if (audioPreview) {
+      URL.revokeObjectURL(audioPreview);
+      setAudioPreview(null);
+    }
+    setAudioBase64(null);
+    setAudioMime(null);
+  };
+
   return (
     <>
       <Dialog>
@@ -174,7 +243,7 @@ export default function Chatbot() {
           </Button>
         </DialogTrigger>
 
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl rounded-lg shadow-2xl">
           <DialogHeader>
             <DialogTitle>Chatbot Informasi Bencana & Perubahan Iklim</DialogTitle>
           </DialogHeader>
@@ -232,7 +301,7 @@ export default function Chatbot() {
                   disabled={loading}
                 />
                 <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-muted-foreground">
                       <input type="file" accept="image/*" onChange={onFileChange} className="hidden" disabled={loading} />
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -240,16 +309,39 @@ export default function Chatbot() {
                       </svg>
                       <span>Upload gambar</span>
                     </label>
-                    {filePreview && <span className="text-xs text-muted-foreground">{fileName}</span>}
+
+                    {filePreview && (
+                      <div className="flex items-center gap-2">
+                        <img src={filePreview} alt={fileName || 'preview'} className="w-24 h-16 object-cover rounded-md border" />
+                        <button onClick={clearFile} className="text-xs text-muted-foreground">Hapus</button>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      {!recording ? (
+                        <button onClick={startRecording} disabled={loading} className="inline-flex items-center gap-2 text-sm bg-red-600 text-white px-3 py-1 rounded-md">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 1v11m0 0a3 3 0 01-3-3V6a3 3 0 116 0v3a3 3 0 01-3 3z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 11v2a7 7 0 0014 0v-2" />
+                          </svg>
+                          Rekam
+                        </button>
+                      ) : (
+                        <button onClick={stopRecording} className="inline-flex items-center gap-2 text-sm bg-yellow-400 text-black px-3 py-1 rounded-md">
+                          Stop
+                        </button>
+                      )}
+
+                      {audioPreview && (
+                        <div className="flex items-center gap-2">
+                          <audio src={audioPreview} controls className="h-8" />
+                          <button onClick={clearAudio} className="text-xs text-muted-foreground">Hapus</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
                   <div className="flex items-center gap-2">
-                    <input
-                      className="input input-sm"
-                      placeholder="https://...jpg"
-                      value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
-                      disabled={loading}
-                    />
                     <Button onClick={send} disabled={loading}>
                       {loading ? 'Mengirim...' : 'Kirim'}
                     </Button>
