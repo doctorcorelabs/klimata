@@ -44,30 +44,9 @@ export default {
 
 Berikan peringatan: jawaban ini bersifat informatif dan bukan pengganti instruksi dari otoritas darurat setempat. Jika situasi darurat, selalu prioritaskan arahan otoritas dan layanan darurat.`;
 
-    // Transform: convert custom `image_base64` content to `image_url` using data: URI
-    const transformContentItem = (item: any) => {
-      try {
-        if (!item || typeof item !== 'object') return item;
-        if (item.type === 'image_base64' && item.image_base64 && item.image_base64.data) {
-          const data = item.image_base64.data;
-          const mime = item.image_base64.mime || 'image/png';
-          const url = `data:${mime};base64,${data}`;
-          return { type: 'image_url', image_url: { url } };
-        }
-      } catch (e) {
-        // ignore transformation errors and fall back to original item
-      }
-      return item;
-    };
-
-    const transformedMessages = clientMessages.map((m: any) => ({
-      ...m,
-      content: Array.isArray(m.content) ? m.content.map(transformContentItem) : m.content,
-    }));
-
     const messages = [
       { role: 'system', content: [{ type: 'text', text: systemInstruction }] },
-      ...transformedMessages,
+      ...clientMessages,
     ];
 
     const headers: Record<string, string> = {
@@ -78,9 +57,6 @@ Berikan peringatan: jawaban ini bersifat informatif dan bukan pengganti instruks
     if (body.referer) headers['HTTP-Referer'] = body.referer;
     if (body.title) headers['X-Title'] = body.title;
 
-    // Optionally allow the client to request a model-level maximum output.
-    // You can pass `max_output_tokens` (OpenRouter param) or `max_chars` (we convert to tokens).
-    // Example: { max_chars: 2000 } -> worker converts to tokens approx (chars/4).
     const maxOutputTokens = body.max_output_tokens || (body.max_chars ? Math.ceil(body.max_chars / 4) : undefined);
 
     const payload: any = { model, messages };
