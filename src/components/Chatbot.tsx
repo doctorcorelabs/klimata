@@ -115,27 +115,27 @@ export default function Chatbot() {
           </Button>
         </DialogTrigger>
 
-        <DialogContent className="w-[min(95vw,64rem)] mx-auto max-w-3xl rounded-lg shadow-2xl">
-          <DialogHeader>
-            <DialogTitle>Chatbot Informasi Bencana & Perubahan Iklim</DialogTitle>
+        <DialogContent className="w-full sm:w-[min(95vw,64rem)] max-w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 border-b shrink-0">
+            <DialogTitle className="text-base sm:text-lg">Chatbot Informasi Bencana & Perubahan Iklim</DialogTitle>
           </DialogHeader>
 
-          <section className="flex flex-col gap-4">
-            <div ref={containerRef} className="space-y-4 mb-2 max-h-[60vh] overflow-auto pr-2">
+          <section className="flex flex-col flex-1 overflow-hidden">
+            <div ref={containerRef} className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
               {messages.length === 0 && (
                 <div className="text-sm text-muted-foreground">Belum ada percakapan. Tanyakan sesuatu terkait bencana atau perubahan iklim.</div>
               )}
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} transition-opacity duration-200`}>
                   {m.role === 'assistant' && (
-                    <div className="flex items-start gap-3">
-                      <Avatar>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <Avatar className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
                         <AvatarFallback>
-                          <Bot className="h-4 w-4" />
+                          <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
                         </AvatarFallback>
                       </Avatar>
-                      <div className="max-w-[70%] bg-card/80 border border-border p-3 rounded-2xl shadow-sm">
-                        <div className="text-sm prose max-w-none whitespace-pre-wrap">
+                      <div className="max-w-[85%] sm:max-w-[70%] bg-card/80 border border-border p-2 sm:p-3 rounded-2xl shadow-sm">
+                        <div className="text-xs sm:text-sm prose prose-sm max-w-none whitespace-pre-wrap break-words">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
                         </div>
                         <div className="text-xs text-muted-foreground mt-2 text-right">{m.time}</div>
@@ -144,16 +144,16 @@ export default function Chatbot() {
                   )}
 
                   {m.role === 'user' && (
-                    <div className="flex items-end gap-3">
-                      <div className="max-w-[70%] bg-primary text-primary-foreground p-3 rounded-2xl shadow-md self-end">
-                        <div className="text-sm prose max-w-none whitespace-pre-wrap">
+                    <div className="flex items-end gap-2 sm:gap-3">
+                      <div className="max-w-[85%] sm:max-w-[70%] bg-primary text-primary-foreground p-2 sm:p-3 rounded-2xl shadow-md self-end">
+                        <div className="text-xs sm:text-sm prose prose-sm max-w-none whitespace-pre-wrap break-words">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
                         </div>
-                        <div className="text-xs text-primary-foreground/80 mt-2 text-right">{m.time}</div>
+                        <div className="text-xs text-primary-foreground/80 mt-1 sm:mt-2 text-right">{m.time}</div>
                       </div>
-                      <Avatar>
+                      <Avatar className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
                         <AvatarFallback>
-                          <User className="h-4 w-4" />
+                          <User className="h-3 w-3 sm:h-4 sm:w-4" />
                         </AvatarFallback>
                       </Avatar>
                     </div>
@@ -162,34 +162,36 @@ export default function Chatbot() {
               ))}
             </div>
 
-            <div className="flex flex-col gap-3">
-              <textarea
-                className="w-full resize-none rounded-lg border border-border p-3 bg-background text-foreground placeholder:text-muted-foreground text-base"
-                placeholder="Tulis pertanyaan tentang bencana atau perubahan iklim..."
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    send();
-                  }
-                }}
-                rows={3}
-                disabled={loading}
-              />
-              
-              <div className="flex justify-end">
-                <Button 
-                  onClick={send} 
-                  disabled={loading || !input.trim()}
-                  className="min-w-[100px]"
-                >
-                  {loading ? 'Mengirim...' : 'Kirim'}
-                </Button>
+            <div className="border-t px-4 sm:px-6 py-3 sm:py-4 bg-background shrink-0">
+              <div className="flex flex-col gap-2">
+                <textarea
+                  className="w-full resize-none rounded-lg border border-border p-2 sm:p-3 bg-background text-foreground placeholder:text-muted-foreground text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="Tulis pertanyaan tentang bencana atau perubahan iklim..."
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      send();
+                    }
+                  }}
+                  rows={2}
+                  disabled={loading}
+                />
+                
+                <div className="flex items-center justify-between gap-2">
+                  {error && <div className="text-xs sm:text-sm text-destructive flex-1">Kesalahan: {error}</div>}
+                  <Button 
+                    onClick={send} 
+                    disabled={loading || !input.trim()}
+                    className="min-w-[80px] sm:min-w-[100px] ml-auto"
+                    size="sm"
+                  >
+                    {loading ? 'Mengirim...' : 'Kirim'}
+                  </Button>
+                </div>
               </div>
             </div>
-
-            {error && <div className="text-sm text-destructive mt-3">Kesalahan: {error}</div>}
           </section>
         </DialogContent>
       </Dialog>
